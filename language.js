@@ -14,6 +14,20 @@
   document.title = document.querySelector(`meta[name="title-${language}"]`).content;
 
   document.addEventListener('DOMContentLoaded', () => {
+    const storePicker = document.querySelector('#store-region');
+    const supportedRegions = [...storePicker.options].map(option => option.value);
+    const requestedRegion = pageURL.searchParams.get('store');
+    let browserRegion = 'us';
+    try {
+      // This suggests a storefront; visitors can choose their account's region.
+      browserRegion = new Intl.Locale(browserLanguage).maximize().region.toLowerCase();
+    } catch {
+      // Keep the US storefront when the browser supplies an invalid locale.
+    }
+    const defaultRegion = supportedRegions.includes(browserRegion) ? browserRegion : 'us';
+    let storeRegion = supportedRegions.includes(requestedRegion) ? requestedRegion : defaultRegion;
+    storePicker.value = storeRegion;
+
     for (const link of document.querySelectorAll('a[href]')) {
       const url = new URL(link.href);
       const isWebsiteLink = url.origin === pageURL.origin && url.pathname.startsWith(new URL('.', pageURL).pathname);
@@ -34,5 +48,30 @@
       url.searchParams.set('lang', linkLanguage);
       link.href = url.href;
     }
+
+    function updateStoreLinks() {
+      for (const link of document.querySelectorAll('a[href]')) {
+        const url = new URL(link.href);
+        if (link.hasAttribute('data-app-store')) {
+          url.pathname = `/${storeRegion}/app/id6830665862`;
+          url.searchParams.set('mt', '12');
+          link.href = url.href;
+          continue;
+        }
+        const isWebsiteLink = url.origin === pageURL.origin && url.pathname.startsWith(new URL('.', pageURL).pathname);
+        if (isWebsiteLink && url.searchParams.has('lang')) {
+          url.searchParams.set('store', storeRegion);
+          link.href = url.href;
+        }
+      }
+    }
+
+    storePicker.addEventListener('change', () => {
+      storeRegion = storePicker.value;
+      pageURL.searchParams.set('store', storeRegion);
+      window.history.replaceState(null, '', pageURL);
+      updateStoreLinks();
+    });
+    updateStoreLinks();
   });
 })();
